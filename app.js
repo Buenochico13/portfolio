@@ -24,6 +24,11 @@ const WIDGET_LAYOUT_VERSION = 4;
 const SUPABASE_CONFIG_VERSION = 1;
 const DEFAULT_SUPABASE_URL = "https://qygnxnftdpvxxlleekob.supabase.co";
 const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_uO8RbHGxx-xL4pX6zHDsRg_y0tmCKAB";
+const ACCEPT_IMAGE = "image/png,image/jpeg,image/jpg,image/heic,image/heif,.png,.jpg,.jpeg,.heic,.heif";
+const ACCEPT_VIDEO = "video/mp4,.mp4";
+const ACCEPT_PDF = "application/pdf,.pdf";
+const ACCEPT_MEDIA = `${ACCEPT_IMAGE},${ACCEPT_VIDEO}`;
+const ACCEPT_MEDIA_PDF = `${ACCEPT_MEDIA},${ACCEPT_PDF}`;
 
 const DEFAULT_WIDGET_LAYOUT = {
   weather: { desktopX: 654, desktopY: 356, width: 390, height: 330 },
@@ -1816,15 +1821,15 @@ function renderProfileAdmin() {
       <div class="admin-row">
         <div class="field">
           <label>Importer photo de profil</label>
-          <input type="file" data-file="profile.photo" accept="image/*" />
+          <input type="file" data-file="profile.photo" accept="${ACCEPT_IMAGE}" />
         </div>
         <div class="field">
           <label>Importer banniere</label>
-          <input type="file" data-file="profile.banner" accept="image/*,video/*" />
+          <input type="file" data-file="profile.banner" accept="${ACCEPT_MEDIA}" />
         </div>
         <div class="field">
           <label>Importer CV</label>
-          <input type="file" data-file="profile.cv" accept="application/pdf" />
+          <input type="file" data-file="profile.cv" accept="${ACCEPT_PDF}" />
         </div>
       </div>
       ${renderField("Nom du proprietaire", "profile.owner", state.profile.owner)}
@@ -1863,7 +1868,7 @@ function renderAppsAdmin(selected) {
       ${renderField("Image icone", "app.iconImage", selected.iconImage || "", "text", selected.id)}
       <div class="field">
         <label>Importer image icone</label>
-        <input type="file" data-file="app.iconImage" data-id="${selected.id}" accept="image/*" />
+        <input type="file" data-file="app.iconImage" data-id="${selected.id}" accept="${ACCEPT_IMAGE}" />
       </div>
       <div class="admin-row">
         ${renderField("Taille icone", "app.iconSize", selected.iconSize ?? 27, "number", selected.id)}
@@ -1968,7 +1973,7 @@ function renderAppThemeEditor(app, theme) {
       ${renderField("URL image/video header", "appTheme.headerMediaSrc", theme.headerMediaSrc, "text", app.id)}
       <div class="field">
         <label>Importer image/video header</label>
-        <input type="file" data-file="appTheme.headerMediaSrc" data-id="${app.id}" accept="image/*,video/*" />
+        <input type="file" data-file="appTheme.headerMediaSrc" data-id="${app.id}" accept="${ACCEPT_MEDIA}" />
       </div>
     </details>
   `;
@@ -1987,7 +1992,7 @@ function renderThemeElementEditor(element, appId) {
       ${renderField("URL image/video", "theme.src", element.src, "text", element.id)}
       <div class="field">
         <label>Importer un fichier</label>
-        <input type="file" data-file="theme.src" data-id="${element.id}" accept="${element.type === "image" ? "image/*" : "video/*"}" />
+        <input type="file" data-file="theme.src" data-id="${element.id}" accept="${element.type === "image" ? ACCEPT_IMAGE : ACCEPT_VIDEO}" />
       </div>
       ${renderField("Texte alternatif", "theme.alt", element.alt, "text", element.id)}
     ` : ""}
@@ -2165,7 +2170,7 @@ function renderWorkExperienceEditors() {
     ["activities", "Activites principales (separees par |)", "textarea"],
     ["skills", "Competences (separees par |)", "textarea"],
     ["logo", "Logo URL"],
-  ], "experience.logo", "image/*");
+  ], "experience.logo", ACCEPT_IMAGE);
 }
 
 function renderMissionProjectEditors() {
@@ -2179,7 +2184,7 @@ function renderMissionProjectEditors() {
     ["gallery", "Galerie images URL/data (separees par |)", "textarea"],
     ["videos", "Videos URL/data (separees par |)", "textarea"],
     ["pdfs", "PDF URL/data (separes par |)", "textarea"],
-  ], "project.cover", "image/*,video/*,application/pdf");
+  ], "project.cover", ACCEPT_MEDIA_PDF);
 }
 
 function renderEducationTimelineEditors() {
@@ -2192,7 +2197,7 @@ function renderEducationTimelineEditors() {
     ["description", "Description", "textarea"],
     ["skills", "Competences (separees par |)", "textarea"],
     ["media", "Medias (separes par |)", "textarea"],
-  ], "education.logo", "image/*,video/*,application/pdf");
+  ], "education.logo", ACCEPT_MEDIA_PDF);
 }
 
 function renderHobbyEditors() {
@@ -2203,7 +2208,7 @@ function renderHobbyEditors() {
     ["description", "Description", "textarea"],
     ["reason", "Pourquoi j'aime", "textarea"],
     ["gallery", "Galerie optionnelle (separee par |)", "textarea"],
-  ], "passion.image", "image/*");
+  ], "passion.image", ACCEPT_IMAGE);
 }
 
 function renderArticleEditors() {
@@ -2214,10 +2219,10 @@ function renderArticleEditors() {
     ["summary", "Resume", "textarea"],
     ["cover", "Image couverture URL"],
     ["content", "Contenu", "textarea"],
-  ], "article.cover", "image/*,video/*,application/pdf");
+  ], "article.cover", ACCEPT_MEDIA_PDF);
 }
 
-function renderCollectionEditors(title, type, items, fields, fileField = "", accept = "image/*") {
+function renderCollectionEditors(title, type, items, fields, fileField = "", accept = ACCEPT_IMAGE) {
   return `
     <div class="admin-row between">
       <strong>${title}</strong>
@@ -2242,14 +2247,14 @@ function renderCollectionEditors(title, type, items, fields, fileField = "", acc
           ` : ""}
           ${type === "project" ? `
             <div class="admin-row">
-              <div class="field"><label>Ajouter image galerie</label><input type="file" data-file="project.gallery" data-id="${index}" accept="image/*" /></div>
-              <div class="field"><label>Ajouter video</label><input type="file" data-file="project.videos" data-id="${index}" accept="video/*" /></div>
-              <div class="field"><label>Ajouter PDF</label><input type="file" data-file="project.pdfs" data-id="${index}" accept="application/pdf" /></div>
+              <div class="field"><label>Ajouter image galerie</label><input type="file" data-file="project.gallery" data-id="${index}" accept="${ACCEPT_IMAGE}" multiple /></div>
+              <div class="field"><label>Ajouter video</label><input type="file" data-file="project.videos" data-id="${index}" accept="${ACCEPT_VIDEO}" multiple /></div>
+              <div class="field"><label>Ajouter PDF</label><input type="file" data-file="project.pdfs" data-id="${index}" accept="${ACCEPT_PDF}" multiple /></div>
             </div>
           ` : ""}
-          ${type === "education" ? `<div class="field"><label>Ajouter media a l'etape</label><input type="file" data-file="education.media" data-id="${index}" accept="image/*,video/*,application/pdf" /></div>` : ""}
-          ${type === "article" ? `<div class="field"><label>Ajouter bloc image/video/PDF</label><input type="file" data-file="article.block" data-id="${index}" accept="image/*,video/*,application/pdf" /></div>` : ""}
-          ${type === "passion" ? `<div class="field"><label>Ajouter image galerie</label><input type="file" data-file="passion.gallery" data-id="${index}" accept="image/*" /></div>` : ""}
+          ${type === "education" ? `<div class="field"><label>Ajouter media a l'etape</label><input type="file" data-file="education.media" data-id="${index}" accept="${ACCEPT_MEDIA_PDF}" multiple /></div>` : ""}
+          ${type === "article" ? `<div class="field"><label>Ajouter bloc image/video/PDF</label><input type="file" data-file="article.block" data-id="${index}" accept="${ACCEPT_MEDIA_PDF}" multiple /></div>` : ""}
+          ${type === "passion" ? `<div class="field"><label>Ajouter image galerie</label><input type="file" data-file="passion.gallery" data-id="${index}" accept="${ACCEPT_IMAGE}" multiple /></div>` : ""}
           ${fields.map(([key, label, kind]) => renderField(label, `${type}.${key}`, Array.isArray(item[key]) ? item[key].join("|") : item[key], kind || "text", index)).join("")}
         </article>
       `).join("")}
@@ -2379,7 +2384,7 @@ function renderWallpaperEditor(target, label, wallpaper) {
         ${renderField("Valeur CSS / URL", `wallpaper.${target}.value`, wallpaper.value, "text")}
         <div class="field">
           <label>Importer image/video</label>
-          <input type="file" data-file="wallpaper.${target}" accept="image/*,video/*" />
+          <input type="file" data-file="wallpaper.${target}" accept="${ACCEPT_MEDIA}" />
         </div>
       </div>
       <div class="admin-row">
@@ -2915,31 +2920,47 @@ function deleteAppointment(id) {
 }
 
 async function handleFileField(event) {
-  const file = event.currentTarget.files?.[0];
-  if (!file) return;
-  const fileTarget = event.currentTarget.dataset.file;
-  const id = event.currentTarget.dataset.id;
+  const input = event.currentTarget;
+  const files = [...(input.files || [])];
+  if (!files.length) return;
+  const fileTarget = input.dataset.file;
+  const id = input.dataset.id;
+  const appendTargets = new Set(["education.media", "project.gallery", "project.videos", "project.pdfs", "passion.gallery", "article.block"]);
+  const filesToImport = appendTargets.has(fileTarget) ? files : files.slice(0, 1);
   try {
     state.ui.uploadStatus = "Import en cours...";
     saveState();
-    const result = await readFileForStorage(file);
-    if (fileTarget === "appTheme.headerMediaSrc") {
-      const app = appById(id || state.admin.selectedAppId);
-      if (!app) return;
-      const theme = appThemeFor(app);
-      theme.headerMediaSrc = result;
-      theme.headerMediaType = file.type.startsWith("video") ? "video" : "image";
-      theme.headerEnabled = true;
-    } else if (fileTarget === "theme.src") {
-      const element = selectedThemeElement();
-      if (!element) return;
-      element.src = result;
-      if (!element.content) element.content = file.name;
-    } else {
-      applyUploadedFile(fileTarget, id, result, file);
+    for (const file of filesToImport) {
+      const result = await readFileForStorage(file);
+      if (fileTarget === "appTheme.headerMediaSrc") {
+        const app = appById(id || state.admin.selectedAppId);
+        if (!app) return;
+        const theme = appThemeFor(app);
+        theme.headerMediaSrc = result;
+        theme.headerMediaType = isVideoFile(file) ? "video" : "image";
+        theme.headerEnabled = true;
+      } else if (fileTarget === "theme.src") {
+        const element = selectedThemeElement();
+        if (!element) return;
+        element.src = result;
+        if (!element.content) element.content = file.name;
+      } else {
+        applyUploadedFile(fileTarget, id, result, file);
+      }
     }
-    state.ui.uploadStatus = file.type.startsWith("image") ? "Image importee et optimisee." : "Fichier importe.";
-    event.currentTarget.value = "";
+    const importedImages = filesToImport.filter(isImageFile).length;
+    const importedVideos = filesToImport.filter(isVideoFile).length;
+    const importedPdfs = filesToImport.filter(isPdfFile).length;
+    state.ui.uploadStatus = [
+      importedImages ? `${importedImages} image${importedImages > 1 ? "s" : ""}` : "",
+      importedVideos ? `${importedVideos} video${importedVideos > 1 ? "s" : ""}` : "",
+      importedPdfs ? `${importedPdfs} PDF` : "",
+    ].filter(Boolean).join(", ") + " importe(s).";
+    try {
+      input.value = "";
+    } catch {
+      // The input can disappear after an async render in some mobile browsers.
+    }
     saveState();
     render();
   } catch (error) {
@@ -2950,11 +2971,39 @@ async function handleFileField(event) {
 }
 
 function readFileForStorage(file) {
-  if (file.type.startsWith("image/") && file.type !== "image/svg+xml") return compressImageFile(file);
-  if (file.size > 8 * 1024 * 1024) {
-    throw new Error("Fichier trop lourd pour la sauvegarde locale. Utilise une image plus legere.");
+  if (isHeicFile(file) || file.type === "image/svg+xml") return readFileAsDataURL(file);
+  if (isImageFile(file)) return compressImageFile(file).catch(() => readFileAsDataURL(file));
+  if (isVideoFile(file) && file.size > 25 * 1024 * 1024) {
+    throw new Error("Video trop lourde. Limite actuelle : 25 Mo pour garder le site stable.");
+  }
+  if (isPdfFile(file) && file.size > 12 * 1024 * 1024) {
+    throw new Error("PDF trop lourd. Limite actuelle : 12 Mo.");
+  }
+  if (!isVideoFile(file) && !isPdfFile(file) && file.size > 12 * 1024 * 1024) {
+    throw new Error("Fichier trop lourd pour la sauvegarde. Utilise un fichier plus leger.");
   }
   return readFileAsDataURL(file);
+}
+
+function fileExtension(file) {
+  return String(file.name || "").split(".").pop().toLowerCase();
+}
+
+function isHeicFile(file) {
+  const ext = fileExtension(file);
+  return ["heic", "heif"].includes(ext) || ["image/heic", "image/heif"].includes(file.type);
+}
+
+function isImageFile(file) {
+  return file.type.startsWith("image/") || ["png", "jpg", "jpeg", "heic", "heif"].includes(fileExtension(file));
+}
+
+function isVideoFile(file) {
+  return file.type.startsWith("video/") || fileExtension(file) === "mp4";
+}
+
+function isPdfFile(file) {
+  return file.type === "application/pdf" || fileExtension(file) === "pdf";
 }
 
 function readFileAsDataURL(file) {
@@ -3017,14 +3066,14 @@ function applyUploadedFile(fileTarget, id, result, file) {
   if (fileTarget === "passion.gallery" && state.passions[index]) state.passions[index].gallery = [...(state.passions[index].gallery || []), result];
   if (fileTarget === "article.cover" && state.blogArticles[index]) state.blogArticles[index].cover = result;
   if (fileTarget === "article.block" && state.blogArticles[index]) {
-    const type = file.type.startsWith("video") ? "video" : file.type === "application/pdf" ? "pdf" : "image";
+    const type = isVideoFile(file) ? "video" : isPdfFile(file) ? "pdf" : "image";
     state.blogArticles[index].blocks = [...(state.blogArticles[index].blocks || []), { type, src: result, label: file.name }];
   }
   if (fileTarget.startsWith("wallpaper.")) {
     const target = fileTarget.split(".")[1];
     const wallpaper = target === "mobile" ? state.settings.mobileWallpaper : state.settings.desktopWallpaper;
     wallpaper.value = result;
-    wallpaper.type = file.type.startsWith("video") ? "video" : "image";
+    wallpaper.type = isVideoFile(file) ? "video" : "image";
   }
 }
 
