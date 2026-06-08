@@ -19,7 +19,7 @@ const defaultAppTheme = {
   headerBorderWidth: 0,
 };
 
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 const WIDGET_LAYOUT_VERSION = 4;
 const SUPABASE_CONFIG_VERSION = 1;
 const DEFAULT_SUPABASE_URL = "https://qygnxnftdpvxxlleekob.supabase.co";
@@ -368,7 +368,7 @@ const defaultState = {
     selectedThemeElementId: "",
     selectedInlineField: "",
     selectedInlineId: "",
-    code: "1234",
+    code: "Amine2230",
     loginError: "",
   },
   profile: {
@@ -477,6 +477,7 @@ const defaultState = {
     reviewStatus: "",
     mailStatus: "",
     calendarStatus: "",
+    uploadStatus: "",
   },
   forms: {
     review: { firstName: "", lastName: "", rating: "", message: "", lastSentAt: 0 },
@@ -523,8 +524,6 @@ const defaultState = {
   mobileUnlocked: false,
 };
 
-let state = loadState();
-normalizeState();
 let drag = null;
 let topZ = 25;
 let renderingBuilderPreview = false;
@@ -533,6 +532,8 @@ let weatherGeoRequested = false;
 let supabaseClient = null;
 let supabaseSyncTimer = null;
 let supabaseHydrating = false;
+let state = loadState();
+normalizeState();
 
 function loadState() {
   try {
@@ -579,6 +580,7 @@ function normalizeState() {
     state.content?.storeIntro?.includes("Passions et centres d'interet presentes sous forme d'applications");
   state.dataVersion = DATA_VERSION;
   state.admin = { ...defaultState.admin, ...state.admin };
+  if (savedVersion < DATA_VERSION || state.admin.code === "1234") state.admin.code = defaultState.admin.code;
   state.profile = { ...defaultState.profile, ...state.profile };
   state.content = oldPortfolioContent || staleContent ? structuredClone(defaultState.content) : { ...defaultState.content, ...state.content };
   state.ui = { ...defaultState.ui, ...state.ui };
@@ -852,7 +854,8 @@ function visibleApps() {
 
 function dockApps(context = "desktop") {
   const key = context === "mobile" ? "mobileDock" : "dock";
-  return visibleApps().filter((app) => app[key] !== false).slice(0, 6);
+  const limit = context === "mobile" ? 4 : 6;
+  return visibleApps().filter((app) => app[key] !== false).slice(0, limit);
 }
 
 function renderWallpaperVideo(wallpaper) {
@@ -1079,13 +1082,21 @@ function renderMobile() {
         <button class="unlock-hint" data-action="unlock-mobile">Deverrouiller</button>
       </div>
       <div class="home-screen">
-        <div class="mobile-widgets">${state.widgets.filter((widget) => widget.visible !== false).slice(0, 2).map((widget) => renderWidget(widget, "mobile")).join("")}</div>
+        <div class="mobile-widgets">${mobileWidgets().map((widget) => renderWidget(widget, "mobile")).join("")}</div>
         <div class="mobile-icons">${visibleApps().map(renderAppIcon).join("")}</div>
         <nav class="mobile-dock">${dockApps("mobile").map((app) => renderAppIcon(app, true)).join("")}</nav>
       </div>
       ${state.activeMobileApp ? renderMobileApp(state.activeMobileApp) : ""}
     </section>
   `;
+}
+
+function mobileWidgets() {
+  const visibleWidgets = state.widgets.filter((widget) => widget.visible !== false);
+  const preferred = ["clock", "weather"]
+    .map((id) => visibleWidgets.find((widget) => widget.id === id))
+    .filter(Boolean);
+  return [...preferred, ...visibleWidgets.filter((widget) => !preferred.includes(widget))].slice(0, 2);
 }
 
 function renderAppIcon(app, dock = false) {
@@ -1726,7 +1737,6 @@ function renderSettings() {
           </div>
           ${state.admin.loginError ? `<p class="form-error">${state.admin.loginError}</p>` : ""}
           <button class="primary-button" data-action="admin-login">Deverrouiller</button>
-          <p class="admin-hint">Code initial du prototype : <strong>1234</strong></p>
         </div>
       </div>
     `;
@@ -1782,6 +1792,7 @@ function renderProfileAdmin() {
   return `
     <div class="admin-panel">
       <h2>Profil Contacts</h2>
+      ${state.ui.uploadStatus ? `<p class="admin-status">${escapeHTML(state.ui.uploadStatus)}</p>` : ""}
       <div class="admin-row">
         <div class="field">
           <label>Importer photo de profil</label>
@@ -1841,7 +1852,7 @@ function renderAppsAdmin(selected) {
       </div>
       <div class="admin-row">
         ${renderSelect("Dans le dock", "app.dock", selected.dock, selected.id)}
-        ${renderSelect("Dans le dock mobile", "app.mobileDock", selected.mobileDock, selected.id)}
+        ${renderSelect("Dans le dock mobile (4 max)", "app.mobileDock", selected.mobileDock, selected.id)}
         ${renderSelect("Visible", "app.visible", selected.visible, selected.id)}
       </div>
       <div class="toolbar-row">
@@ -2527,8 +2538,8 @@ async function handleAction(event) {
   if (action === "admin-login") {
     const input = event.currentTarget.closest(".admin-login")?.querySelector("[data-field='admin.codeInput']");
     const typedCode = String(input?.value || state.admin.codeInput || "").trim();
-    const validCodes = [String(state.admin.code || ""), String(defaultState.admin.code)];
-    if (typedCode === "1234" || validCodes.includes(typedCode)) {
+    const validCode = String(state.admin.code || defaultState.admin.code);
+    if (typedCode === validCode) {
       state.admin.unlocked = true;
       state.admin.loginError = "";
     } else {
@@ -2661,7 +2672,7 @@ function handleInlineKeydown(event) {
 }
 
 function setStateField(field, value, id = "") {
-  if (field === "admin.code") state.admin.code = value || "1234";
+  if (field === "admin.code") state.admin.code = value || defaultState.admin.code;
   if (field === "profile.owner") state.profile.owner = value;
   if (field === "profile.title") state.profile.title = value;
   if (field === "profile.email") state.profile.email = value;
@@ -2880,14 +2891,15 @@ function deleteAppointment(id) {
   state.appointments = state.appointments.filter((item) => item.id !== id);
 }
 
-function handleFileField(event) {
+async function handleFileField(event) {
   const file = event.currentTarget.files?.[0];
   if (!file) return;
   const fileTarget = event.currentTarget.dataset.file;
   const id = event.currentTarget.dataset.id;
-  const reader = new FileReader();
-  reader.onload = () => {
-    const result = String(reader.result || "");
+  try {
+    state.ui.uploadStatus = "Import en cours...";
+    saveState();
+    const result = await readFileForStorage(file);
     if (fileTarget === "appTheme.headerMediaSrc") {
       const app = appById(id || state.admin.selectedAppId);
       if (!app) return;
@@ -2903,10 +2915,61 @@ function handleFileField(event) {
     } else {
       applyUploadedFile(fileTarget, id, result, file);
     }
+    state.ui.uploadStatus = file.type.startsWith("image") ? "Image importee et optimisee." : "Fichier importe.";
+    event.currentTarget.value = "";
     saveState();
     render();
-  };
-  reader.readAsDataURL(file);
+  } catch (error) {
+    state.ui.uploadStatus = error?.message || "Import impossible. Essaie une image plus legere.";
+    saveState();
+    render();
+  }
+}
+
+function readFileForStorage(file) {
+  if (file.type.startsWith("image/") && file.type !== "image/svg+xml") return compressImageFile(file);
+  if (file.size > 8 * 1024 * 1024) {
+    throw new Error("Fichier trop lourd pour la sauvegarde locale. Utilise une image plus legere.");
+  }
+  return readFileAsDataURL(file);
+}
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const maxSide = 1600;
+      const ratio = Math.min(1, maxSide / Math.max(image.naturalWidth || 1, image.naturalHeight || 1));
+      const width = Math.max(1, Math.round((image.naturalWidth || 1) * ratio));
+      const height = Math.max(1, Math.round((image.naturalHeight || 1) * ratio));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) {
+        URL.revokeObjectURL(image.src);
+        reject(new Error("Compression image indisponible."));
+        return;
+      }
+      context.drawImage(image, 0, 0, width, height);
+      URL.revokeObjectURL(image.src);
+      resolve(canvas.toDataURL("image/jpeg", 0.86));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(image.src);
+      reject(new Error("Image impossible a importer."));
+    };
+    image.src = URL.createObjectURL(file);
+  });
 }
 
 function applyUploadedFile(fileTarget, id, result, file) {
