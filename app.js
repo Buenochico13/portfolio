@@ -532,6 +532,7 @@ let weatherGeoRequested = false;
 let supabaseClient = null;
 let supabaseSyncTimer = null;
 let supabaseHydrating = false;
+let supabaseBooting = true;
 let state = loadState();
 normalizeState();
 
@@ -702,7 +703,7 @@ function getSupabaseClient() {
 }
 
 function scheduleSupabaseSync() {
-  if (supabaseHydrating || !supabaseEnabled()) return;
+  if (supabaseBooting || supabaseHydrating || !supabaseEnabled()) return;
   clearTimeout(supabaseSyncTimer);
   supabaseSyncTimer = setTimeout(() => {
     syncSupabase("auto");
@@ -796,6 +797,10 @@ async function pullSupabaseState() {
       githubRemote: state.settings.githubRemote,
     };
     state = mergeState(defaultState, data.payload);
+    state.admin = { ...state.admin, unlocked: false, editing: false, codeInput: "", loginError: "" };
+    state.windows = [];
+    state.activeMobileApp = null;
+    state.mobileUnlocked = false;
     state.settings = { ...state.settings, ...currentSettings, supabaseStatus: "Donnees recuperees depuis Supabase", supabaseLastSync: new Date().toLocaleString("fr-FR") };
     normalizeState();
     supabaseHydrating = false;
@@ -806,6 +811,15 @@ async function pullSupabaseState() {
     saveState();
     render();
   }
+}
+
+async function bootApp() {
+  if (supabaseEnabled()) {
+    await pullSupabaseState();
+  } else {
+    render();
+  }
+  supabaseBooting = false;
 }
 
 async function syncSupabaseCollection(client, table, items, meta = () => ({})) {
@@ -843,8 +857,11 @@ async function syncSupabaseSingleton(client, table, id, payload) {
 function exportSupabasePayload() {
   return {
     ...structuredClone(state),
-    admin: { ...state.admin, codeInput: "" },
+    admin: { ...state.admin, unlocked: false, editing: false, codeInput: "", loginError: "" },
     forms: structuredClone(defaultState.forms),
+    windows: [],
+    activeMobileApp: null,
+    mobileUnlocked: false,
   };
 }
 
@@ -3560,5 +3577,5 @@ function escapeHTML(value) {
     .replaceAll("'", "&#039;");
 }
 
-render();
+bootApp();
 setInterval(updateClock, 1000);
