@@ -533,6 +533,7 @@ let supabaseClient = null;
 let supabaseSyncTimer = null;
 let supabaseHydrating = false;
 let supabaseBooting = true;
+let publicSupabaseSyncPending = false;
 let state = loadState();
 normalizeState();
 
@@ -704,6 +705,7 @@ function getSupabaseClient() {
 
 function scheduleSupabaseSync() {
   if (supabaseBooting || supabaseHydrating || !supabaseEnabled()) return;
+  if (!state.admin.unlocked && !publicSupabaseSyncPending) return;
   clearTimeout(supabaseSyncTimer);
   supabaseSyncTimer = setTimeout(() => {
     syncSupabase("auto");
@@ -757,6 +759,7 @@ async function syncSupabase(mode = "manual") {
     ]);
     state.settings.supabaseLastSync = new Date().toLocaleString("fr-FR");
     state.settings.supabaseStatus = mode === "auto" ? "Synchronisation automatique OK" : "Synchronisation Supabase OK";
+    publicSupabaseSyncPending = false;
     memoryState = structuredClone(state);
     window.localStorage?.setItem(STORAGE_KEY, JSON.stringify(state));
     if (mode !== "auto") render();
@@ -2831,6 +2834,7 @@ function submitReview() {
   });
   state.forms.review = { firstName: "", lastName: "", rating: "", message: "", lastSentAt: now };
   state.ui.reviewStatus = "Avis envoye. Il apparaitra apres validation.";
+  publicSupabaseSyncPending = true;
 }
 
 function submitMail() {
@@ -2851,6 +2855,7 @@ function submitMail() {
   });
   state.forms.mail = { name: "", email: "", subject: "", message: "" };
   state.ui.mailStatus = "Message enregistre. Il pourra etre connecte a Resend, SMTP, Mailgun ou EmailJS.";
+  publicSupabaseSyncPending = true;
 }
 
 function submitAppointment() {
@@ -2873,6 +2878,7 @@ function submitAppointment() {
   });
   state.forms.appointment = { ...defaultState.forms.appointment };
   state.ui.calendarStatus = "Demande envoyee et enregistree dans l'administration.";
+  publicSupabaseSyncPending = true;
 }
 
 function toggleTodo(widgetId, index) {
