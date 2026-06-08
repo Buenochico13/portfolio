@@ -611,6 +611,13 @@ function normalizeState() {
     state.settings.useSupabase = true;
     state.settings.supabaseStatus = "Supabase configure";
   }
+  if (isPublishedSite()) {
+    state.settings.supabaseConfigVersion = SUPABASE_CONFIG_VERSION;
+    state.settings.supabaseUrl = DEFAULT_SUPABASE_URL;
+    state.settings.supabaseAnonKey = DEFAULT_SUPABASE_PUBLISHABLE_KEY;
+    state.settings.useSupabase = true;
+  }
+  if (!state.admin.unlocked) state.admin.editing = false;
 
   state.apps = mergeCoreApps(state.apps);
   if (oldPortfolioContent || !Array.isArray(state.experiences) || state.experiences.some((item) => item.role || item.dates)) {
@@ -635,6 +642,17 @@ function normalizeState() {
     state.settings.widgetLayoutVersion = WIDGET_LAYOUT_VERSION;
   }
   saveState();
+}
+
+function isPublishedSite() {
+  return window.location.hostname === "buenochico13.github.io";
+}
+
+function lockPublicSession() {
+  state.admin = { ...state.admin, unlocked: false, editing: false, codeInput: "", loginError: "" };
+  state.windows = [];
+  state.activeMobileApp = null;
+  state.mobileUnlocked = false;
 }
 
 function mergeCoreApps(savedApps = []) {
@@ -805,10 +823,7 @@ async function pullSupabaseState() {
       githubRemote: state.settings.githubRemote,
     };
     state = mergeState(defaultState, data.payload);
-    state.admin = { ...state.admin, unlocked: false, editing: false, codeInput: "", loginError: "" };
-    state.windows = [];
-    state.activeMobileApp = null;
-    state.mobileUnlocked = false;
+    lockPublicSession();
     state.settings = { ...state.settings, ...currentSettings, supabaseStatus: "Donnees recuperees depuis Supabase", supabaseLastSync: new Date().toLocaleString("fr-FR") };
     normalizeState();
     supabaseHydrating = false;
@@ -825,6 +840,7 @@ async function bootApp() {
   if (supabaseEnabled()) {
     await pullSupabaseState();
   } else {
+    lockPublicSession();
     render();
   }
   supabaseBooting = false;
