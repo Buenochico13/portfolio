@@ -539,6 +539,8 @@ let supabaseSyncTimer = null;
 let supabaseHydrating = false;
 let supabaseBooting = true;
 let publicSupabaseSyncPending = false;
+let supabaseSyncInFlight = false;
+let supabaseSyncPromise = null;
 let state = loadState();
 normalizeState();
 
@@ -754,14 +756,55 @@ async function testSupabaseConnection() {
 }
 
 async function syncSupabase(mode = "manual") {
+  if (supabaseSyncPromise) {
+    if (mode !== "auto") {
+      state.settings.supabaseStatus = "Synchronisation deja en cours...";
+      render();
+      const result = await supabaseSyncPromise;
+      render();
+      return result;
+    }
+    return supabaseSyncPromise;
+  }
+  supabaseSyncPromise = runSupabaseSync(mode).finally(() => {
+    supabaseSyncPromise = null;
+  });
+  return supabaseSyncPromise;
+}
+
+async function runSupabaseSync(mode = "manual") {
   const client = getSupabaseClient();
-  if (!client) return;
+  if (!client) {
+    state.settings.supabaseStatus = "Configuration Supabase incomplete.";
+    render();
+    return false;
+  }
+  clearTimeout(supabaseSyncTimer);
+  supabaseSyncTimer = null;
+  supabaseSyncInFlight = true;
+  const syncVersion = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  state.settings.supabaseSyncVersion = syncVersion;
+  state.settings.supabaseStatus = mode === "auto" ? "Synchronisation automatique en cours..." : "Synchronisation Supabase en cours...";
+  if (mode !== "auto") render();
   const payload = exportSupabasePayload();
   try {
-    const { error } = await client
+    const { data, error } = await client
       .from("portfolio_state")
-      .upsert({ id: "main", payload, updated_at: new Date().toISOString() }, { onConflict: "id" });
+      .upsert({ id: "main", payload, updated_at: new Date().toISOString() }, { onConflict: "id" })
+      .select("payload, updated_at")
+      .maybeSingle();
     if (error) throw error;
+    if (data?.payload?.settings?.supabaseSyncVersion !== syncVersion) {
+      const { data: remoteState, error: verifyError } = await client
+        .from("portfolio_state")
+        .select("payload")
+        .eq("id", "main")
+        .maybeSingle();
+      if (verifyError) throw verifyError;
+      if (remoteState?.payload?.settings?.supabaseSyncVersion !== syncVersion) {
+        throw new Error("Verification impossible. La base n'a pas confirme la derniere version.");
+      }
+    }
     await Promise.all([
       syncSupabaseSingleton(client, "portfolio_settings", "main", {
         profile: state.profile,
@@ -783,10 +826,18 @@ async function syncSupabase(mode = "manual") {
     state.settings.supabaseLastSync = new Date().toLocaleString("fr-FR");
     state.settings.supabaseStatus = mode === "auto" ? "Synchronisation automatique OK" : "Synchronisation Supabase OK";
     publicSupabaseSyncPending = false;
+    const finalPayload = exportSupabasePayload();
+    const { error: finalError } = await client
+      .from("portfolio_state")
+      .upsert({ id: "main", payload: finalPayload, updated_at: new Date().toISOString() }, { onConflict: "id" });
+    if (finalError) throw finalError;
+    supabaseSyncInFlight = false;
     memoryState = structuredClone(state);
     window.localStorage?.setItem(STORAGE_KEY, JSON.stringify(state));
     if (mode !== "auto") render();
+    return true;
   } catch (error) {
+    supabaseSyncInFlight = false;
     state.settings.supabaseStatus = `Erreur sync: ${error.message}`;
     memoryState = structuredClone(state);
     try {
@@ -795,6 +846,7 @@ async function syncSupabase(mode = "manual") {
       // Keep local state in memory if storage is unavailable.
     }
     if (mode !== "auto") render();
+    return false;
   }
 }
 
@@ -844,6 +896,10 @@ async function bootApp() {
     render();
   }
   supabaseBooting = false;
+}
+
+function hasPendingSupabaseSync() {
+  return Boolean(supabaseSyncInFlight || supabaseSyncTimer || supabaseSyncPromise);
 }
 
 async function syncSupabaseCollection(client, table, items, meta = () => ({})) {
@@ -3647,6 +3703,12 @@ function escapeHTML(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+window.addEventListener("beforeunload", (event) => {
+  if (!hasPendingSupabaseSync()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
 
 bootApp();
 setInterval(updateClock, 1000);
