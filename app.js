@@ -661,7 +661,7 @@ function mergeCoreApps(savedApps = []) {
   const customApps = savedApps.filter((app) => !DEFAULT_APPS.some((core) => core.id === app.id));
   const merged = DEFAULT_APPS.map((core) => {
     const saved = savedApps.find((app) => app.id === core.id) || {};
-    return { ...core, ...saved, name: core.id === "education" ? "Parcours+" : saved.name || core.name };
+    return { ...core, ...saved, name: saved.name || core.name };
   });
   return [...merged, ...customApps];
 }
